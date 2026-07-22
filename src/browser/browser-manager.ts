@@ -1,11 +1,13 @@
 import { chromium, Browser, Page, BrowserContext } from '@playwright/test';
 import { config } from '../config/config';
 import { logger } from '../utils/logger';
+import { AutoClicker } from './auto-clicker';
 
 export class BrowserManager {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private page: Page | null = null;
+  private autoClicker: AutoClicker | null = null;
   private isAuthenticated: boolean = false;
 
   async initialize(): Promise<void> {
@@ -22,6 +24,7 @@ export class BrowserManager {
       });
 
       this.page = await this.context.newPage();
+      this.autoClicker = new AutoClicker(this.page);
       logger.info('Browser initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize browser', { error: String(error) });
@@ -267,7 +270,109 @@ export class BrowserManager {
     }
   }
 
+  // ===== AUTO-CLICKER METHODS =====
+
+  async clickMultipleTimes(selector: string, count: number, interval: number = 500) {
+    if (!this.autoClicker) {
+      throw new Error('AutoClicker not initialized');
+    }
+    logger.info('Starting multiple clicks', { selector, count, interval });
+    return await this.autoClicker.clickMultiple({
+      selector,
+      count,
+      interval,
+      waitForSelector: true,
+    });
+  }
+
+  async clickForTime(selector: string, duration: number, interval: number = 500) {
+    if (!this.autoClicker) {
+      throw new Error('AutoClicker not initialized');
+    }
+    logger.info('Starting duration-based clicks', { selector, duration, interval });
+    return await this.autoClicker.clickForDuration({
+      selector,
+      duration,
+      interval,
+      waitForSelector: true,
+    });
+  }
+
+  async smartClick(
+    selector: string,
+    stopCondition: 'disappear' | 'appear' = 'disappear',
+    checkSelector?: string
+  ) {
+    if (!this.autoClicker) {
+      throw new Error('AutoClicker not initialized');
+    }
+    logger.info('Starting smart clicks', { selector, stopCondition, checkSelector });
+    return await this.autoClicker.smartClick({
+      selector,
+      stopCondition,
+      checkSelector,
+      interval: 1000,
+      waitForSelector: true,
+    });
+  }
+
+  async rapidFire(selector: string, count: number = 50) {
+    if (!this.autoClicker) {
+      throw new Error('AutoClicker not initialized');
+    }
+    logger.info('Starting rapid-fire clicks', { selector, count });
+    return await this.autoClicker.rapidFire({
+      selector,
+      count,
+      waitForSelector: true,
+    });
+  }
+
+  async doubleClick(selector: string, times: number = 1): Promise<boolean> {
+    if (!this.autoClicker) {
+      throw new Error('AutoClicker not initialized');
+    }
+    return await this.autoClicker.doubleClick(selector, times);
+  }
+
+  async rightClick(selector: string): Promise<boolean> {
+    if (!this.autoClicker) {
+      throw new Error('AutoClicker not initialized');
+    }
+    return await this.autoClicker.rightClick(selector);
+  }
+
+  async middleClick(selector: string): Promise<boolean> {
+    if (!this.autoClicker) {
+      throw new Error('AutoClicker not initialized');
+    }
+    return await this.autoClicker.middleClick(selector);
+  }
+
+  getClickerStats() {
+    if (!this.autoClicker) {
+      throw new Error('AutoClicker not initialized');
+    }
+    return this.autoClicker.getStats();
+  }
+
+  stopClicker(): void {
+    if (this.autoClicker) {
+      this.autoClicker.stop();
+    }
+  }
+
+  isClickerRunning(): boolean {
+    if (!this.autoClicker) {
+      return false;
+    }
+    return this.autoClicker.isActive();
+  }
+
   async close(): Promise<void> {
+    if (this.autoClicker) {
+      this.autoClicker.stop();
+    }
     if (this.browser) {
       await this.browser.close();
       logger.info('Browser closed');
